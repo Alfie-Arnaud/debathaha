@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debate Spin Wheel</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    color: white;
+    padding: 20px 16px 40px;
+  }
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+    text-align: center;
+    background: linear-gradient(90deg, #f9d423, #ff4e50);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+    letter-spacing: 1px;
+  }
+  .subtitle { font-size: 0.8rem; color: #aaa; margin-bottom: 16px; text-align: center; }
+
+  .tabs {
+    display: flex; gap: 8px; margin-bottom: 18px;
+    background: rgba(255,255,255,0.07); border-radius: 999px; padding: 5px;
+  }
+  .tab {
+    padding: 8px 20px; border-radius: 999px; border: none; cursor: pointer;
+    font-weight: 700; font-size: 0.85rem; background: transparent; color: #aaa; transition: all 0.25s;
+  }
+  .tab.active {
+    background: linear-gradient(135deg, #f9d423, #ff4e50);
+    color: #111; box-shadow: 0 2px 12px rgba(249,212,35,0.4);
+  }
+
+  .panel { display: none; flex-direction: column; align-items: center; width: 100%; }
+  .panel.active { display: flex; }
+
+  .category-toggle { display: flex; gap: 10px; margin-bottom: 18px; }
+  .cat-btn {
+    padding: 7px 20px; border-radius: 999px; border: 2px solid transparent;
+    cursor: pointer; font-weight: 700; font-size: 0.82rem;
+    background: rgba(255,255,255,0.08); color: white; transition: all 0.2s;
+  }
+  .cat-btn.active.mudah { background: #f9d423; color: #222; border-color: #f9d423; }
+  .cat-btn.active.lanjutan { background: #ff4e50; color: #fff; border-color: #ff4e50; }
+
+  .wheel-container {
+    position: relative; width: 320px; height: 320px; margin-bottom: 16px;
+  }
+  canvas { border-radius: 50%; display: block; }
+  .pointer {
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 13px solid transparent; border-right: 13px solid transparent;
+    border-top: 28px solid #f9d423;
+    filter: drop-shadow(0 2px 6px rgba(249,212,35,0.8)); z-index: 10;
+  }
+  .center-btn {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #f9d423, #ff4e50);
+    border: none; cursor: pointer; font-size: 1.4rem;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 20px rgba(255,78,80,0.6); z-index: 20; transition: transform 0.1s;
+  }
+  .center-btn:hover { transform: translate(-50%,-50%) scale(1.1); }
+  .center-btn:active { transform: translate(-50%,-50%) scale(0.95); }
+
+  .result-box {
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 16px; padding: 14px 22px; max-width: 340px; width: 100%;
+    text-align: center; min-height: 66px;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(10px); transition: border-color 0.4s;
+  }
+  .result-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 2px; color: #aaa; margin-bottom: 5px; }
+  .result-text { font-size: 0.98rem; font-weight: 700; color: #fff; line-height: 1.4; }
+  .result-num { font-size: 0.73rem; color: #f9d423; margin-top: 4px; }
+
+  /* TEAM */
+  .team-section { width: 100%; max-width: 360px; }
+  .team-controls { display: flex; gap: 8px; margin-bottom: 14px; justify-content: center; flex-wrap: wrap; }
+  .team-spin-btn {
+    padding: 10px 22px; border-radius: 999px; border: none; cursor: pointer;
+    font-weight: 800; font-size: 0.9rem; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .btn-aff { background: linear-gradient(135deg, #0984e3, #74b9ff); color: white; box-shadow: 0 3px 14px rgba(9,132,227,0.4); }
+  .btn-opp { background: linear-gradient(135deg, #d63031, #ff7675); color: white; box-shadow: 0 3px 14px rgba(214,48,49,0.4); }
+  .btn-reset { background: rgba(255,255,255,0.1); color: #ccc; border: 1px solid rgba(255,255,255,0.2); }
+  .btn-aff:hover, .btn-opp:hover { transform: scale(1.04); }
+  .btn-reset:hover { background: rgba(255,255,255,0.18); }
+
+  .pool-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; color: #aaa; text-align: center; margin-bottom: 8px; }
+  .members-pool { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-bottom: 18px; }
+  .member-chip {
+    padding: 6px 14px; border-radius: 999px; font-size: 0.82rem;
+    font-weight: 600; transition: all 0.3s; border: 2px solid transparent;
+  }
+  .member-chip.available { background: rgba(255,255,255,0.1); color: #eee; border-color: rgba(255,255,255,0.2); }
+  .member-chip.assigned-aff { background: rgba(9,132,227,0.25); color: #74b9ff; border-color: #0984e3; }
+  .member-chip.assigned-opp { background: rgba(214,48,49,0.25); color: #ff7675; border-color: #d63031; }
+
+  .teams-display { display: flex; gap: 12px; width: 100%; justify-content: center; flex-wrap: wrap; }
+  .team-card {
+    flex: 1; min-width: 140px; max-width: 165px;
+    background: rgba(255,255,255,0.06); border-radius: 14px;
+    padding: 12px 14px; border: 2px solid transparent; transition: border-color 0.3s;
+  }
+  .team-card.aff { border-color: #0984e3; }
+  .team-card.opp { border-color: #d63031; }
+  .team-card-title {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px;
+    font-weight: 800; margin-bottom: 8px; text-align: center;
+  }
+  .team-card.aff .team-card-title { color: #74b9ff; }
+  .team-card.opp .team-card-title { color: #ff7675; }
+  .team-member-list { list-style: none; }
+  .team-member-list li {
+    padding: 5px 8px; margin-bottom: 4px; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 600; text-align: center; animation: popIn 0.35s ease;
+  }
+  .team-card.aff .team-member-list li { background: rgba(9,132,227,0.2); color: #a8d8ff; }
+  .team-card.opp .team-member-list li { background: rgba(214,48,49,0.2); color: #ffb3b3; }
+  .empty-slot {
+    border: 1.5px dashed rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.25) !important;
+    background: transparent !important;
+    font-style: italic; font-size: 0.75rem !important;
+  }
+  @keyframes popIn {
+    from { transform: scale(0.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .spin-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; backdrop-filter: blur(4px);
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .spin-overlay.active { opacity: 1; pointer-events: all; }
+  .spin-card {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 24px; padding: 32px 40px; text-align: center;
+    border: 2px solid; min-width: 240px;
+    transform: scale(0.8); transition: transform 0.3s;
+  }
+  .spin-overlay.active .spin-card { transform: scale(1); }
+  .spin-card.aff { border-color: #0984e3; box-shadow: 0 0 40px rgba(9,132,227,0.4); }
+  .spin-card.opp { border-color: #d63031; box-shadow: 0 0 40px rgba(214,48,49,0.4); }
+  .spin-card-label { font-size: 0.7rem; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; }
+  .spin-card.aff .spin-card-label { color: #74b9ff; }
+  .spin-card.opp .spin-card-label { color: #ff7675; }
+  .spin-card-name { font-size: 2.4rem; font-weight: 900; color: white; margin-bottom: 6px; }
+  .spin-card-sub { font-size: 0.8rem; color: #aaa; }
+  .confetti { font-size: 2rem; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>🎯 Debate Wheel</h1>
+<p class="subtitle">Spin motions & build your teams!</p>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('motion')">📋 Motion</button>
+  <button class="tab" onclick="switchTab('team')">👥 Teams</button>
+</div>
+
+<!-- MOTION PANEL -->
+<div class="panel active" id="panel-motion">
+  <div class="category-toggle">
+    <button class="cat-btn active mudah" id="btnMudah" onclick="setCategory('mudah')">⭐ Mudah</button>
+    <button class="cat-btn lanjutan" id="btnLanjutan" onclick="setCategory('lanjutan')">🔥 Lanjutan</button>
+  </div>
+  <div class="wheel-container">
+    <div class="pointer"></div>
+    <canvas id="wheelCanvas" width="320" height="320"></canvas>
+    <button class="center-btn" onclick="spinMotion()">▶</button>
+  </div>
+  <div class="result-box" id="motionResult">
+    <div>
+      <div class="result-label">Motion</div>
+      <div class="result-text" id="motionText">Press ▶ to spin!</div>
+    </div>
+  </div>
+</div>
+
+<!-- TEAM PANEL -->
+<div class="panel" id="panel-team">
+  <div class="team-section">
+    <div class="pool-label">Member Pool</div>
+    <div class="members-pool" id="memberPool"></div>
+    <div class="team-controls">
+      <button class="team-spin-btn btn-aff" onclick="assignMember('aff')">🔵 Spin Affirmative</button>
+      <button class="team-spin-btn btn-opp" onclick="assignMember('opp')">🔴 Spin Opposition</button>
+      <button class="team-spin-btn btn-reset" onclick="resetTeams()">↺ Reset</button>
+    </div>
+    <div class="teams-display">
+      <div class="team-card aff">
+        <div class="team-card-title">🔵 Affirmative</div>
+        <ul class="team-member-list" id="affList"></ul>
+      </div>
+      <div class="team-card opp">
+        <div class="team-card-title">🔴 Opposition</div>
+        <ul class="team-member-list" id="oppList"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SPIN OVERLAY -->
+<div class="spin-overlay" id="spinOverlay">
+  <div class="spin-card" id="spinCard">
+    <div class="spin-card-label" id="spinCardLabel">Spinning...</div>
+    <div class="spin-card-name" id="spinCardName">?</div>
+    <div class="spin-card-sub" id="spinCardSub"></div>
+    <div class="confetti" id="spinConfetti"></div>
+  </div>
+</div>
+
+<script>
+const motions = {
+  mudah: [
+    { num:"M1", text:"THW ban junk food from school canteens" },
+    { num:"M2", text:"THB students should learn financial literacy in school" },
+    { num:"M3", text:"THW make recycling mandatory for all households" },
+    { num:"M4", text:"THB screen time for children under 12 should be limited by law" },
+    { num:"M5", text:"THW provide free mental health counseling in all schools" },
+    { num:"M6", text:"THB students should be allowed to wear casual clothes to school" },
+    { num:"M7", text:"THW ban sugary drinks from being sold to children" },
+    { num:"M8", text:"THB every citizen should be required to plant at least one tree per year" },
+  ],
+  lanjutan: [
+    { num:"L1", text:"THW impose a wealth tax on billionaires to fund public healthcare" },
+    { num:"L2", text:"THB governments should ban political advertising on social media" },
+    { num:"L3", text:"THW make mental health days legally recognized as sick days for workers" },
+    { num:"L4", text:"THB developed nations have a greater obligation to combat climate change than developing ones" },
+    { num:"L5", text:"THW require tech companies to disclose their algorithms to the public" },
+    { num:"L6", text:"THB universal basic income is the best solution to combat poverty" },
+  ]
+};
+
+const colorsMudah = ["#f9d423","#ff6b6b","#48dbfb","#ff9ff3","#1dd1a1","#feca57","#54a0ff","#5f27cd"];
+const colorsLanjutan = ["#ff4e50","#f9d423","#a29bfe","#fd79a8","#00cec9","#6c5ce7"];
+
+let currentCategory = 'mudah';
+let motionAngle = 0;
+let motionSpinning = false;
+
+const allMembers = ["Alwan","Alfia","Carla","Beatrice","Zaren","Aira","Desvita"];
+let available = [...allMembers];
+let affTeam = [], oppTeam = [];
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['motion','team'][i]===tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+}
+
+function setCategory(cat) {
+  if (motionSpinning) return;
+  currentCategory = cat;
+  document.getElementById('btnMudah').className = 'cat-btn'+(cat==='mudah'?' active mudah':'');
+  document.getElementById('btnLanjutan').className = 'cat-btn'+(cat==='lanjutan'?' active lanjutan':'');
+  motionAngle = 0;
+  drawWheel();
+  document.getElementById('motionResult').innerHTML = `<div><div class="result-label">Motion</div><div class="result-text">Press ▶ to spin!</div></div>`;
+  document.getElementById('motionResult').style.borderColor = '';
+}
+
+function drawWheel() {
+  const canvas = document.getElementById('wheelCanvas');
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width/2, cy = canvas.height/2, r = cx-8;
+  const items = motions[currentCategory];
+  const colors = currentCategory==='mudah' ? colorsMudah : colorsLanjutan;
+  const arc = (2*Math.PI)/items.length;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  ctx.save();
+  ctx.shadowColor = currentCategory==='mudah'?'#f9d423':'#ff4e50';
+  ctx.shadowBlur = 22;
+  ctx.beginPath(); ctx.arc(cx,cy,r+4,0,2*Math.PI);
+  ctx.strokeStyle = currentCategory==='mudah'?'#f9d423':'#ff4e50';
+  ctx.lineWidth=3; ctx.stroke(); ctx.restore();
+
+  items.forEach((item,i) => {
+    const start = motionAngle+i*arc, end = start+arc, mid = start+arc/2;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,end); ctx.closePath();
+    ctx.fillStyle = colors[i%colors.length]; ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=2; ctx.stroke();
+
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(mid); ctx.textAlign='right';
+    ctx.fillStyle='rgba(0,0,0,0.85)';
+    const fs = items.length>6?10:11;
+    ctx.font=`bold ${fs}px Segoe UI`;
+    const words=item.text.split(' '), lines=[];
+    let line='';
+    words.forEach(w=>{
+      const test=line?line+' '+w:w;
+      if(ctx.measureText(test).width>r*0.72){if(line)lines.push(line);line=w;}
+      else line=test;
+    });
+    if(line)lines.push(line);
+    const lh=items.length>6?12:14, sy=-(lines.length-1)*lh/2;
+    lines.forEach((l,li)=>ctx.fillText(l,r*0.88,sy+li*lh+4));
+    ctx.restore();
+  });
+}
+
+function spinMotion() {
+  if(motionSpinning) return;
+  motionSpinning=true;
+  document.getElementById('motionResult').innerHTML=`<div><div class="result-label">Motion</div><div class="result-text" style="color:#aaa;font-style:italic">Spinning...</div></div>`;
+  const totalSpins=(Math.random()*4+5)*2*Math.PI;
+  const duration=3500+Math.random()*1000;
+  const startAngle=motionAngle, startTime=performance.now();
+  function easeOut(t){return 1-Math.pow(1-t,4);}
+  function animate(now){
+    const t=Math.min((now-startTime)/duration,1);
+    motionAngle=startAngle+totalSpins*easeOut(t);
+    drawWheel();
+    if(t<1) requestAnimationFrame(animate);
+    else{motionSpinning=false; showMotionResult();}
+  }
+  requestAnimationFrame(animate);
+}
+
+function showMotionResult(){
+  const items=motions[currentCategory];
+  const arc=(2*Math.PI)/items.length;
+  const norm=((motionAngle%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+  const ptr=(3*Math.PI/2-norm+2*Math.PI)%(2*Math.PI);
+  const idx=Math.floor(ptr/arc)%items.length;
+  const sel=items[idx];
+  const box=document.getElementById('motionResult');
+  box.style.borderColor=currentCategory==='mudah'?'#f9d423':'#ff4e50';
+  box.innerHTML=`<div><div class="result-label">🎯 Selected Motion</div><div class="result-text">${sel.text}</div><div class="result-num">${sel.num} · ${currentCategory==='mudah'?'⭐ Mudah':'🔥 Lanjutan'}</div></div>`;
+}
+
+function renderPool(){
+  document.getElementById('memberPool').innerHTML=allMembers.map(m=>{
+    let cls='member-chip available';
+    if(affTeam.includes(m)) cls='member-chip assigned-aff';
+    else if(oppTeam.includes(m)) cls='member-chip assigned-opp';
+    return `<span class="${cls}">${m}</span>`;
+  }).join('');
+}
+
+function renderTeams(){
+  const maxSlots=Math.ceil(allMembers.length/2);
+  ['aff','opp'].forEach(side=>{
+    const team=side==='aff'?affTeam:oppTeam;
+    const list=document.getElementById(side+'List');
+    list.innerHTML='';
+    for(let i=0;i<maxSlots;i++){
+      const li=document.createElement('li');
+      if(team[i]){li.textContent=team[i];}
+      else{li.textContent='— empty —';li.classList.add('empty-slot');}
+      list.appendChild(li);
+    }
+  });
+}
+
+function assignMember(side){
+  if(available.length===0){showOverlay(side,null,'No members left!','');return;}
+  const maxPerSide=Math.ceil(allMembers.length/2);
+  const team=side==='aff'?affTeam:oppTeam;
+  if(team.length>=maxPerSide){showOverlay(side,null,'Team full!','');return;}
+  const names=[...available];
+  let i=0, interval=setInterval(()=>{
+    document.getElementById('spinCardName').textContent=names[i%names.length]; i++;
+  },80);
+  showOverlay(side,null,'...','Picking member...');
+  setTimeout(()=>{
+    clearInterval(interval);
+    const pick=names[Math.floor(Math.random()*names.length)];
+    available=available.filter(m=>m!==pick);
+    if(side==='aff') affTeam.push(pick); else oppTeam.push(pick);
+    showOverlay(side,pick,pick,side==='aff'?'Joins Affirmative! 🔵':'Joins Opposition! 🔴');
+    renderPool(); renderTeams();
+  },1400);
+}
+
+function showOverlay(side,name,mainText,sub){
+  const ov=document.getElementById('spinOverlay');
+  document.getElementById('spinCard').className='spin-card '+side;
+  document.getElementById('spinCardLabel').textContent=side==='aff'?'🔵 Affirmative':'🔴 Opposition';
+  document.getElementById('spinCardName').textContent=mainText;
+  document.getElementById('spinCardSub').textContent=sub;
+  document.getElementById('spinConfetti').textContent=name?(side==='aff'?'🎉':'🎊'):'';
+  ov.classList.add('active');
+  if(name) setTimeout(()=>ov.classList.remove('active'),2000);
+}
+
+document.getElementById('spinOverlay').addEventListener('click',()=>{
+  document.getElementById('spinOverlay').classList.remove('active');
+});
+
+drawWheel();
+renderPool();
+renderTeams();
+</script>
+</body>
+</html>
